@@ -1,0 +1,32 @@
+Object_Detection_API
+tensorflow-gpu-1.13.2
+
+Prepare
+python object_detection/dataset_tools/create_pascal_tf_record.py --label_map_path=object_detection/data/roco.pbtxt --data_dir=D:/models-1.13.0/research/object_detection/data/VOCdevkit/ --year=VOC2012 --set=train --output_path=coco.record
+
+Train
+python object_detection/model_main.py --pipeline_config_path=D:/models-1.13.0/research/object_detection/models/my_model_dir/my_model.config --model_dir=D:/models-1.13.0/research/object_detection/models/my_model_dir --num_train_steps=50000 --sample_1_of_n_eval_examples=1 --alsologtostderr
+
+Quantization-aware Training(USING TENSORFLOW==1.13.2 WITHOUT G.P.U)
+python object_detection/model_main.py --pipeline_config_path=D:/models-1.13.0/research/object_detection/models/quantized_model_dir/quantized_model.config --model_dir=D:/models-1.13.0/research/object_detection/models/quantized_model_dir --num_train_steps=5000 --sample_1_of_n_eval_examples=1 --alsologtostderr
+
+Visualization
+(base) D:\models-1.13.0\research\object_detection\models>tensorboard --logdir=my_model_dir --host=127.0.0.1
+
+export
+python object_detection/export_inference_graph.py --input_type=image_tensor --pipeline_config_path=D:/models-1.13.0/research/object_detection/models/my_model_dir/my_model.config --trained_checkpoint_prefix=D:/models-1.13.0/research/object_detection/models/my_model_dir/selectedCkpt/model.ckpt-50000 --output_directory=D:/models-1.13.0/research/object_detection/models/my_model_dir/export
+
+python object_detection/tf_text_graph_ssd.py --input=D:/models-1.13.0/research/object_detection/models/my_model_dir/export/frozen_inference_graph.pb --config=D:/models-1.13.0/research/object_detection/models/my_model_dir/my_model.config --output=D:/models-1.13.0/research/object_detection/models/my_model_dir/export/ssd.pbtxt
+
+Export to Tflite:
+Convert pb to tflite:
+
+step 1:
+python object_detection/export_tflite_ssd_graph.py --pipeline_config_path D:/models-1.13.0/research/object_detection/models/my_model_dir/my_model.config --trained_checkpoint_prefix D:/models-1.13.0/research/object_detection/models/my_model_dir/model.ckpt-50000 --output_directory D:/models-1.13.0/research/object_detection/models/my_model_dir/tf_lite_model
+
+python object_detection/export_tflite_ssd_graph.py --pipeline_config_path D:/models-1.13.0/research/object_detection/models/quantized_model_dir/quantized_model.config --trained_checkpoint_prefix D:/models-1.13.0/research/object_detection/models/quantized_model_dir/model.ckpt-693 --output_directory D:/models-1.13.0/research/object_detection/models/quantized_model_dir /tf_lite_model
+
+step 2:
+toco --graph_def_file=D:/models-1.13.0/research/object_detection/models/my_model_dir/tf_lite_model/tflite_graph.pb --output_file=D:/models-1.13.0/research/object_detection/models/my_model_dir/tf_lite_model/tflite_mobile.tflite --input_shapes=1,300,300,3 --input_arrays=normalized_input_image_tensor --output_arrays=TFLite_Detection_PostProcess,TFLite_Detection_PostProcess:1,TFLite_Detection_PostProcess:2,TFLite_Detection_PostProcess:3 --inference_type=QUANTIZED_UINT8 --allow_custom_ops --input_format=TENSORFLOW_GRAPHDEF --allow_custom_ops 
+
+toco --graph_def_file=D:/models-1.13.0/research/object_detection/models/quantized_model_dir/tf_lite_model/tflite_graph.pb --output_file=D:/models-1.13.0/research/object_detection/models/quantized_model_dir/tf_lite_model/tflite_mobile.tflite --input_shapes=1,300,300,3 --input_arrays=normalized_input_image_tensor --output_arrays=TFLite_Detection_PostProcess,TFLite_Detection_PostProcess:1,TFLite_Detection_PostProcess:2,TFLite_Detection_PostProcess:3 --inference_type=QUANTIZED_UINT8 --allow_custom_ops --input_format=TENSORFLOW_GRAPHDEF --allow_custom_ops --mean_values=128 --std_values=128
